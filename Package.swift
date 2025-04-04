@@ -11,6 +11,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "7.0.0")
+        .package(url: "https://github.com/Web3Auth/web3auth-swift-sdk.git", from: "11.0.0")
     ],
     targets: [
         .target(

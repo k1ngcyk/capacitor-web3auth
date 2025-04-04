@@ -7,4 +7,18 @@ export class CapWeb3AuthWeb extends WebPlugin implements CapWeb3AuthPlugin {
     console.log('ECHO', options);
     return options;
   }
+
+  async login(options: {
+    clientId: string;
+    network: string;
+    provider: string;
+    loginHint?: string;
+  }): Promise<{ result: any }> {
+    console.log('LOGIN', options);
+    return { result: {} };
+  }
+
+  async logout(): Promise<void> {
+    console.log('LOGOUT');
+  }
 }
