@@ -23,14 +23,7 @@ public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private var web3auth: Web3Auth? = nil
-
-    @objc func echo(_ call: CAPPluginCall) {
-        let value = call.getString("value") ?? ""
-        call.resolve([
-            "value": implementation.echo(value)
-        ])
-    }
-
+    
     @objc func logout(_ call: CAPPluginCall) {
         Task {
             do {
@@ -43,68 +36,94 @@ public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func login(_ call: CAPPluginCall) {
-        let clientId = call.getString("clientId") ?? ""
-        let network = call.getString("network") ?? ""
-        let provider = call.getString("provider") ?? ""
-        let loginHint = call.getString("loginHint") ?? ""
-        let redirectUrl = call.getString("redirectUrl") ?? ""
-
+        guard let clientId = call.getString("clientId") else {
+            call.reject("clientId is required")
+            return
+        }
+        
+        let network = call.getString("network")
+        print("Login called with clientId: \(clientId), network: \(network ?? "nil")")
+        
         Task {
             do {
-                if(web3auth != nil) {
-                    try await web3auth?.logout();
-                }
-                if(web3auth == nil)
-                {
+                // Initialize Web3Auth if not already initialized
+                if web3auth == nil {
+                    print("Initializing Web3Auth...")
                     web3auth = try! await Web3Auth(W3AInitParams(
-                        clientId: clientId,
-                        network: Network(rawValue: network) ?? .sapphire_devnet,
-                        redirectUrl: redirectUrl,
+                        clientId: "BGiGcxrXAdtx-43HZ-gPdxlsNIbYe1BazcUfJCU6Z97nhG0T5_XMcj1H4mDBUOQiKBjjJfeDFO6ewJj-ZDvGUq8",
+                        network: .sapphire_devnet,
+                        redirectUrl: "co.datadance.app://auth"
                     ))
+                    print("Web3Auth initialized successfully")
                 }
-
-                switch provider {
-                    case "email":
-                        let result = try await web3auth!.login(W3ALoginParams(loginProvider: .EMAIL_PASSWORDLESS, extraLoginOptions: .init(login_hint: loginHint)))
-                    case "google":
-                        let result = try await web3auth!.login(W3ALoginParams(loginProvider: .GOOGLE))
-                    case "apple":
-                        let result = try await web3auth!.login(W3ALoginParams(loginProvider: .APPLE))
-                    default:
-                        let result = try await web3auth!.login(W3ALoginParams(loginProvider: .GOOGLE))
-                }
-
-                let privateKey = web3auth!.getPrivkey()
-                let web3AuthUserInfo = try! web3auth!.getUserInfo()
                 
-                let userInfo: [String: String] = [
-                    "aggregateVerifier": web3AuthUserInfo.aggregateVerifier ?? "",
-                    "email": web3AuthUserInfo.email ?? "",
-                    "name": web3AuthUserInfo.name ?? "",
-                    "profileImage": web3AuthUserInfo.profileImage ?? "",
-                    "typeOfLogin": web3AuthUserInfo.typeOfLogin ?? "",
-                    "verifier": web3AuthUserInfo.verifier ?? "",
-                    "verifierId": web3AuthUserInfo.verifierId ?? "",
-                    "dappShare": web3AuthUserInfo.dappShare ?? "",
-                    "idToken": web3AuthUserInfo.idToken ?? "",
-                    "oAuthIdToken": web3AuthUserInfo.oAuthIdToken ?? "",
-                    "oAuthAccessToken": web3AuthUserInfo.oAuthAccessToken ?? ""
+                guard let web3auth = web3auth else {
+                    call.reject("Failed to initialize Web3Auth")
+                    return
+                }
+                
+                var loginParams: W3ALoginParams
+                
+                switch clientId.lowercased() {
+                case "google":
+                    print("Attempting Google login")
+                    loginParams = W3ALoginParams(loginProvider: .GOOGLE)
+                case "apple":
+                    print("Attempting Apple login")
+                    loginParams = W3ALoginParams(loginProvider: .APPLE)
+                case "x":
+                    print("Attempting Apple login")
+                    loginParams = W3ALoginParams(loginProvider: .TWITTER)
+                case "email":
+                    if let email = network {
+                        print("Attempting Email login with: \(email)")
+                        loginParams = W3ALoginParams(
+                            loginProvider: .EMAIL_PASSWORDLESS,
+                            extraLoginOptions: .init(login_hint: email)
+                        )
+                    } else {
+                        call.reject("Email is required for email login")
+                        return
+                    }
+                default:
+                    call.reject("Unsupported login provider: \(clientId)")
+                    return
+                }
+                
+                print("Executing login with params...")
+                let result = try await web3auth.login(loginParams)
+                print("Login successful")
+                
+                // Get user info
+                let userInfo = try web3auth.getUserInfo()
+                let privateKey = web3auth.getPrivkey()
+                
+                let userInfoDict: [String: String] = [
+                    "aggregateVerifier": userInfo.aggregateVerifier ?? "",
+                    "email": userInfo.email ?? "",
+                    "name": userInfo.name ?? "",
+                    "profileImage": userInfo.profileImage ?? "",
+                    "typeOfLogin": userInfo.typeOfLogin ?? "",
+                    "verifier": userInfo.verifier ?? "",
+                    "verifierId": userInfo.verifierId ?? "",
+                    "dappShare": userInfo.dappShare ?? "",
+                    "idToken": userInfo.idToken ?? "",
+                    "oAuthIdToken": userInfo.oAuthIdToken ?? "",
+                    "oAuthAccessToken": userInfo.oAuthAccessToken ?? ""
                 ]
                 
                 let resultData: [String: Any] = [
+                    "ed25519PrivKey": "",
                     "privKey": privateKey ?? "",
                     "sessionId": "",
-                    "userInfo": userInfo
+                    "userInfo": userInfoDict
                 ]
                 
-                try await web3auth?.logout();
-                
-                print("Logged out, returning")
-                call.resolve(["result": resultData ])
+                call.resolve(["result": resultData])
                 
             } catch {
-                print("Error")
-                call.reject("Error logging in through Web3", nil)
+                print("Login failed with error: \(error.localizedDescription)")
+                call.reject("Login failed: \(error.localizedDescription)")
             }
         }
     }

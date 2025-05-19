@@ -14,6 +14,9 @@ npx cap sync
 <docgen-index>
 
 * [`echo(...)`](#echo)
+* [`login(...)`](#login)
+* [`logout()`](#logout)
+* [Type Aliases](#type-aliases)
 
 </docgen-index>
 
@@ -33,5 +36,47 @@ echo(options: { value: string; }) => Promise<{ value: string; }>
 **Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
 
 --------------------
+
+
+### login(...)
+
+```typescript
+login(options: W3ALoginParams) => Promise<{ result: W3ALoginResponse; }>
+```
+
+| Param         | Type                                                      |
+| ------------- | --------------------------------------------------------- |
+| **`options`** | <code><a href="#w3aloginparams">W3ALoginParams</a></code> |
+
+**Returns:** <code>Promise&lt;{ result: <a href="#w3aloginresponse">W3ALoginResponse</a>; }&gt;</code>
+
+--------------------
+
+
+### logout()
+
+```typescript
+logout() => Promise<void>
+```
+
+--------------------
+
+
+### Type Aliases
+
+
+#### W3ALoginResponse
+
+<code>{ privKey?: string; userInfo?: <a href="#w3auserinfo">W3AUserInfo</a>; sessionId?: string; }</code>
+
+
+#### W3AUserInfo
+
+<code>{ aggregateVerifier?: string; email?: string; name?: string; profileImage?: string; typeOfLogin?: string; verifier?: string; verifierId?: string; dappShare?: string; idToken?: string; oAuthIdToken?: string; oAuthAccessToken?: string; }</code>
+
+
+#### W3ALoginParams
+
+<code>{ clientId: string; network: string; provider: string; loginHint?: string; redirectUri?: string; }</code>
 
 </docgen-api>
