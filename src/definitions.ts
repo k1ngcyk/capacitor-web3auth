@@ -8,6 +8,7 @@ export interface CapWeb3AuthPlugin {
 
 export declare type W3ALoginResponse = {
   privKey?: string;
+  ed25519PrivateKey?: string;
   userInfo?: W3AUserInfo;
   sessionId?: string;
 };
@@ -31,5 +32,5 @@ export declare type W3ALoginParams = {
   network: string;
   provider: string;
   loginHint?: string;
-  redirectUri?: string;
+  redirectUrl?: string;
 };

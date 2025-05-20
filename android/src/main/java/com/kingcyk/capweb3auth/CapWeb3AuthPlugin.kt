@@ -1,5 +1,6 @@
 package com.kingcyk.capweb3auth
 
+import android.content.Intent
 import android.net.Uri
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -12,6 +13,8 @@ import com.web3auth.core.types.LoginParams
 import com.web3auth.core.types.Network
 import com.web3auth.core.types.Provider
 import com.web3auth.core.types.Web3AuthOptions
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.*
 
 @CapacitorPlugin(name = "CapWeb3Auth")
 class CapWeb3AuthPlugin : Plugin() {
@@ -25,6 +28,11 @@ class CapWeb3AuthPlugin : Plugin() {
         val ret = JSObject()
         ret.put("value", implementation.echo(value))
         call.resolve(ret)
+    }
+
+    override fun handleOnNewIntent(intent: Intent?) {
+        super.handleOnNewIntent(intent)
+        web3auth?.setResultUrl(intent?.data)
     }
 
     @PluginMethod
@@ -47,54 +55,108 @@ class CapWeb3AuthPlugin : Plugin() {
             call.reject("network is required")
             return
         }
-        
-        if (web3auth == null) {
-            web3auth = Web3Auth(
-                Web3AuthOptions(
-                    clientId = "BGiGcxrXAdtx-43HZ-gPdxlsNIbYe1BazcUfJCU6Z97nhG0T5_XMcj1H4mDBUOQiKBjjJfeDFO6ewJj-ZDvGUq8",
-                    network = Network.SAPPHIRE_DEVNET,
-                    redirectUrl = Uri.parse("co.datadance.app://auth")
-                ),
-                context = this.activity.applicationContext,
-            )
+
+        var w3aNetwork: Network? = null
+        when (network) {
+            "sapphire_devnet" -> w3aNetwork = Network.SAPPHIRE_DEVNET
+            else -> {
+                w3aNetwork = Network.SAPPHIRE_MAINNET
+            }
         }
 
-        var w3aLoginProvider: Provider
-        var w3aLoginParams: LoginParams
-        when (clientId) {
-            "google" -> {
-                w3aLoginProvider = Provider.GOOGLE
-                w3aLoginParams = LoginParams(w3aLoginProvider)
-            }
-            "apple" -> {
-                w3aLoginProvider = Provider.APPLE
-                w3aLoginParams = LoginParams(w3aLoginProvider)
-            }
-            "x" -> {
-                w3aLoginProvider = Provider.TWITTER
-                w3aLoginParams = LoginParams(w3aLoginProvider)
-            }
-            "email" -> {
-                w3aLoginProvider = Provider.EMAIL_PASSWORDLESS
-                w3aLoginParams = LoginParams(w3aLoginProvider, extraLoginOptions = ExtraLoginOptions(
-                    login_hint = network
-                ))
-            }
+        val provider = call.getString("provider")
+        val loginHint = call.getString("loginHint")
+        val redirectUrl = call.getString("redirectUrl")
+
+        val loginParams = when (provider) {
+            "google" -> LoginParams(Provider.GOOGLE)
+            "apple" -> LoginParams(Provider.APPLE)
+            "x" -> LoginParams(Provider.TWITTER)
+            "email" -> LoginParams(Provider.EMAIL_PASSWORDLESS, extraLoginOptions = ExtraLoginOptions(
+                login_hint = loginHint
+            ))
             else -> {
-                call.reject("unknown clientId")
+                call.reject("Unknown provider")
                 return
             }
         }
 
-        val loginCompletableFuture = web3auth?.login(w3aLoginParams)
-
-        loginCompletableFuture?.whenComplete { loginResponse, error ->
-            if (error == null) {
-                val ret = JSObject()
-                ret.put("result", loginResponse)
-                call.resolve(ret)
-            } else {
-                call.reject(error.message)
+        if (web3auth == null) {
+            web3auth = Web3Auth(
+                Web3AuthOptions(
+                    clientId = clientId,
+                    network = w3aNetwork,
+                    redirectUrl = Uri.parse(redirectUrl)
+                ),
+                context = this@CapWeb3AuthPlugin.context
+            )
+            web3auth?.setResultUrl(this@CapWeb3AuthPlugin.activity.intent?.data)
+            val initCompletableFuture = web3auth?.initialize()
+            initCompletableFuture?.whenComplete { _, error ->
+                if (error == null) {
+                    println("web3auth init success")
+                    val loginCompletableFuture = web3auth?.login(loginParams)
+                    loginCompletableFuture?.whenComplete { result, error ->
+                        if (error == null) {
+                            val ret = JSObject()
+                            val resultObj = JSObject()
+                            val userInfo = JSObject()
+                            userInfo.put("email", result?.userInfo?.email ?: "")
+                            userInfo.put("name", result?.userInfo?.name ?: "")
+                            userInfo.put("profileImage", result?.userInfo?.profileImage ?: "")
+                            userInfo.put("verifier", result?.userInfo?.verifier ?: "")
+                            userInfo.put("verifierId", result?.userInfo?.verifierId ?: "")
+                            userInfo.put("typeOfLogin", result?.userInfo?.typeOfLogin ?: "")
+                            userInfo.put("aggregateVerifier", result?.userInfo?.aggregateVerifier ?: "")
+                            userInfo.put("dappShare", result?.userInfo?.dappShare ?: "")
+                            userInfo.put("idToken", result?.userInfo?.idToken ?: "")
+                            userInfo.put("oAuthIdToken", result?.userInfo?.oAuthIdToken ?: "")
+                            userInfo.put("oAuthAccessToken", result?.userInfo?.oAuthAccessToken ?: "")
+                            resultObj.put("userInfo", userInfo)
+                            resultObj.put("privKey", result?.privKey ?: "")
+                            resultObj.put("ed25519PrivKey", result?.ed25519PrivKey ?: "")
+                            resultObj.put("sessionId", result?.sessionId ?: "")
+                            ret.put("result", resultObj)
+                            call.resolve(ret)
+                        } else {
+                            println("web3auth login fail")
+                            call.reject(error.message)
+                        }
+                    }
+                } else {
+                    println("web3auth init fail")
+                    call.reject(error.message)
+                }
+            }
+        } else {
+            val loginCompletableFuture = web3auth?.login(loginParams)
+            loginCompletableFuture?.whenComplete { result, error ->
+                if (error == null) {
+                    println("web3auth login success")
+                    val ret = JSObject()
+                    val resultObj = JSObject()
+                    val userInfo = JSObject()
+                    userInfo.put("email", result?.userInfo?.email ?: "")
+                    userInfo.put("name", result?.userInfo?.name ?: "")
+                    userInfo.put("profileImage", result?.userInfo?.profileImage ?: "")
+                    userInfo.put("verifier", result?.userInfo?.verifier ?: "")
+                    userInfo.put("verifierId", result?.userInfo?.verifierId ?: "")
+                    userInfo.put("typeOfLogin", result?.userInfo?.typeOfLogin ?: "")
+                    userInfo.put("aggregateVerifier", result?.userInfo?.aggregateVerifier ?: "")
+                    userInfo.put("dappShare", result?.userInfo?.dappShare ?: "")
+                    userInfo.put("idToken", result?.userInfo?.idToken ?: "")
+                    userInfo.put("oAuthIdToken", result?.userInfo?.oAuthIdToken ?: "")
+                    userInfo.put("oAuthAccessToken", result?.userInfo?.oAuthAccessToken ?: "")
+                    resultObj.put("userInfo", userInfo)
+                    resultObj.put("privKey", result?.privKey ?: "")
+                    resultObj.put("ed25519PrivKey", result?.ed25519PrivKey ?: "")
+                    resultObj.put("sessionId", result?.sessionId ?: "")
+                    ret.put("result", resultObj)
+                    call.resolve(ret)
+                } else {
+                    println("web3auth login fail")
+                    call.reject(error.message)
+                }
             }
         }
     }

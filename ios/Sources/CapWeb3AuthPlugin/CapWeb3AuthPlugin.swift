@@ -10,9 +10,6 @@ import Web3Auth
 public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "CapWeb3AuthPlugin"
     public let jsName = "CapWeb3Auth"
-    public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "echo", returnType: CAPPluginReturnPromise)
-    ]
     private let implementation = CapWeb3Auth()
 
     @objc func echo(_ call: CAPPluginCall) {
@@ -40,9 +37,27 @@ public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("clientId is required")
             return
         }
-        
-        let network = call.getString("network")
-        print("Login called with clientId: \(clientId), network: \(network ?? "nil")")
+
+        guard let network = call.getString("network") else {
+            call.reject("network is required")
+            return
+        }
+
+        guard let provider = call.getString("provider") else {
+            call.reject("provider is required")
+            return
+        }
+
+        let loginHint = call.getString("loginHint")
+        let redirectUrl = call.getString("redirectUrl")
+
+        var w3aNetwork: Network
+        switch network.lowercased() {
+        case "sapphire_devnet":
+            w3aNetwork = .sapphire_devnet
+        default:
+            w3aNetwork = .sapphire_mainnet
+        }
         
         Task {
             do {
@@ -50,9 +65,9 @@ public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
                 if web3auth == nil {
                     print("Initializing Web3Auth...")
                     web3auth = try! await Web3Auth(W3AInitParams(
-                        clientId: "BGiGcxrXAdtx-43HZ-gPdxlsNIbYe1BazcUfJCU6Z97nhG0T5_XMcj1H4mDBUOQiKBjjJfeDFO6ewJj-ZDvGUq8",
-                        network: .sapphire_devnet,
-                        redirectUrl: "co.datadance.app://auth"
+                        clientId: clientId,
+                        network: w3aNetwork,
+                        redirectUrl: redirectUrl
                     ))
                     print("Web3Auth initialized successfully")
                 }
@@ -64,7 +79,7 @@ public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
                 
                 var loginParams: W3ALoginParams
                 
-                switch clientId.lowercased() {
+                switch provider.lowercased() {
                 case "google":
                     print("Attempting Google login")
                     loginParams = W3ALoginParams(loginProvider: .GOOGLE)
@@ -75,18 +90,18 @@ public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
                     print("Attempting Apple login")
                     loginParams = W3ALoginParams(loginProvider: .TWITTER)
                 case "email":
-                    if let email = network {
+                    if let email = loginHint {
                         print("Attempting Email login with: \(email)")
                         loginParams = W3ALoginParams(
                             loginProvider: .EMAIL_PASSWORDLESS,
                             extraLoginOptions: .init(login_hint: email)
                         )
                     } else {
-                        call.reject("Email is required for email login")
+                        call.reject("loginHint is required for email login")
                         return
                     }
                 default:
-                    call.reject("Unsupported login provider: \(clientId)")
+                    call.reject("Unsupported login provider: \(provider)")
                     return
                 }
                 
