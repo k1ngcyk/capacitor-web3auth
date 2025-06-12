@@ -8,6 +8,12 @@ import Web3Auth
  */
 @objc(CapWeb3AuthPlugin)
 public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "echo", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "login", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "logout", returnType: CAPPluginReturnPromise),
+    ]
+
     public let identifier = "CapWeb3AuthPlugin"
     public let jsName = "CapWeb3Auth"
     private let implementation = CapWeb3Auth()
@@ -67,7 +73,7 @@ public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
                     web3auth = try! await Web3Auth(W3AInitParams(
                         clientId: clientId,
                         network: w3aNetwork,
-                        redirectUrl: redirectUrl
+                        redirectUrl: redirectUrl ?? ""
                     ))
                     print("Web3Auth initialized successfully")
                 }

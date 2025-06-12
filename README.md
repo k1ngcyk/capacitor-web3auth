@@ -67,7 +67,7 @@ logout() => Promise<void>
 
 #### W3ALoginResponse
 
-<code>{ privKey?: string; userInfo?: <a href="#w3auserinfo">W3AUserInfo</a>; sessionId?: string; }</code>
+<code>{ privKey?: string; ed25519PrivateKey?: string; userInfo?: <a href="#w3auserinfo">W3AUserInfo</a>; sessionId?: string; }</code>
 
 
 #### W3AUserInfo
@@ -77,6 +77,6 @@ logout() => Promise<void>
 
 #### W3ALoginParams
 
-<code>{ clientId: string; network: string; provider: string; loginHint?: string; redirectUri?: string; }</code>
+<code>{ clientId: string; network: string; provider: string; loginHint?: string; redirectUrl?: string; }</code>
 
 </docgen-api>
