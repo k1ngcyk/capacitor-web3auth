@@ -94,7 +94,7 @@ public class CapWeb3AuthPlugin: CAPPlugin, CAPBridgedPlugin {
                     loginParams = W3ALoginParams(loginProvider: .APPLE)
                 case "x":
                     print("Attempting Apple login")
-                    loginParams = W3ALoginParams(loginProvider: .TWITTER)
+                    loginParams = W3ALoginParams(loginProvider: .TWITTER, redirectUrl: redirectUrl ?? "")
                 case "email":
                     if let email = loginHint {
                         print("Attempting Email login with: \(email)")

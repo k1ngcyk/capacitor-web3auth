@@ -71,7 +71,7 @@ class CapWeb3AuthPlugin : Plugin() {
         val loginParams = when (provider) {
             "google" -> LoginParams(Provider.GOOGLE)
             "apple" -> LoginParams(Provider.APPLE)
-            "x" -> LoginParams(Provider.TWITTER)
+            "x" -> LoginParams(Provider.TWITTER, redirectUrl = redirectUrl ?: "")
             "email" -> LoginParams(Provider.EMAIL_PASSWORDLESS, extraLoginOptions = ExtraLoginOptions(
                 login_hint = loginHint
             ))
