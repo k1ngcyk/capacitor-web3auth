@@ -125,7 +125,34 @@ class CapWeb3AuthPlugin : Plugin() {
                     }
                 } else {
                     println("web3auth init fail")
-                    call.reject(error.message)
+                    val loginCompletableFuture = web3auth?.login(loginParams)
+                    loginCompletableFuture?.whenComplete { result, error ->
+                        if (error == null) {
+                            val ret = JSObject()
+                            val resultObj = JSObject()
+                            val userInfo = JSObject()
+                            userInfo.put("email", result?.userInfo?.email ?: "")
+                            userInfo.put("name", result?.userInfo?.name ?: "")
+                            userInfo.put("profileImage", result?.userInfo?.profileImage ?: "")
+                            userInfo.put("verifier", result?.userInfo?.verifier ?: "")
+                            userInfo.put("verifierId", result?.userInfo?.verifierId ?: "")
+                            userInfo.put("typeOfLogin", result?.userInfo?.typeOfLogin ?: "")
+                            userInfo.put("aggregateVerifier", result?.userInfo?.aggregateVerifier ?: "")
+                            userInfo.put("dappShare", result?.userInfo?.dappShare ?: "")
+                            userInfo.put("idToken", result?.userInfo?.idToken ?: "")
+                            userInfo.put("oAuthIdToken", result?.userInfo?.oAuthIdToken ?: "")
+                            userInfo.put("oAuthAccessToken", result?.userInfo?.oAuthAccessToken ?: "")
+                            resultObj.put("userInfo", userInfo)
+                            resultObj.put("privKey", result?.privKey ?: "")
+                            resultObj.put("ed25519PrivKey", result?.ed25519PrivKey ?: "")
+                            resultObj.put("sessionId", result?.sessionId ?: "")
+                            ret.put("result", resultObj)
+                            call.resolve(ret)
+                        } else {
+                            println("web3auth login fail")
+                            call.reject(error.message)
+                        }
+                    }
                 }
             }
         } else {
